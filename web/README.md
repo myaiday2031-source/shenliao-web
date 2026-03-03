@@ -1,6 +1,33 @@
 # 深聊 - AI驱动的行业智库平台前端
 
+> 🚀 **3 分钟快速部署到线上！** 查看 [快速部署指南](START_HERE.md)
+
 这是"深聊"智能行业研究平台的Web前端项目，基于 Next.js 14 构建，提供简洁大气的用户界面和完善的管理功能。
+
+## ⚡ 快速开始
+
+### 🎯 我要快速部署到线上！
+
+```powershell
+# Windows
+cd web
+.\scripts\deploy-vercel-hkg.bat
+
+# Mac/Linux
+cd web
+chmod +x scripts/deploy-vercel-hkg.sh
+./scripts/deploy-vercel-hkg.sh
+```
+
+**就这么简单！** 3 分钟后，你的网站就可以上线了！🎉
+
+📖 **详细部署指南**: [START_HERE.md](START_HERE.md)
+
+### 📋 我要选择合适的部署方案
+
+查看 [部署方案选择指南](DEPLOYMENT_GUIDE.md)，选择最适合你的方案。
+
+---
 
 ## 技术栈
 
@@ -55,27 +82,51 @@ web/
 
 ### 🚀 线上部署（推荐）
 
-想要快速将网站部署到线上？我们提供两种方案：
+想要快速将网站部署到线上？我们提供三种方案：
 
-#### 方案 1: Vercel 部署（推荐，最快，5分钟）
+#### ⭐ 方案 1: 一键部署（最简单，3分钟）【推荐】
+
+**Windows 用户：**
+```powershell
+cd web
+.\scripts\deploy-vercel-hkg.bat
+```
+
+**Mac/Linux 用户：**
+```bash
+cd web
+chmod +x scripts/deploy-vercel-hkg.sh
+./scripts/deploy-vercel-hkg.sh
+```
+
+**优势**:
+- ✅ 一键部署，自动化所有步骤
+- ✅ 使用香港节点，国内访问速度快
+- ✅ 完全免费
+- ✅ 自动 HTTPS
+- ✅ 无需复杂配置
+
+📖 **详细文档**: [3分钟快速部署指南](3_MIN_DEPLOY.md)
+
+#### 方案 2: Vercel 手动部署
 
 ```bash
 cd web
 npm install -g vercel
 vercel login
-bash scripts/deploy-vercel.sh
+vercel --prod --regions=hkg1
 ```
 
 **优势**:
 - ✅ 5分钟快速上线
 - ✅ 免费，无需服务器
-- ✅ 全球 CDN 加速
+- ✅ 香港节点优化国内访问
 - ✅ 自动 HTTPS
 - ✅ GitHub 自动部署
 
 详细文档: [Vercel 部署指南](VERCEL_DEPLOY.md)
 
-#### 方案 2: Nginx 反向代理（自有服务器）
+#### 方案 3: Nginx 反向代理（自有服务器）
 
 ```bash
 cd web
@@ -89,7 +140,7 @@ bash scripts/deploy-nginx.sh
 
 详细文档: [Nginx 部署指南](NGINX_DEPLOY.md)
 
-📖 **完整部署指南**: [DEPLOYMENT.md](DEPLOYMENT.md)
+📖 **完整部署指南**: [国内访问优化部署指南](QUICK_DEPLOY_CN.md)
 
 ### 🖥️ 本地开发
 
