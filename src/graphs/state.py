@@ -67,6 +67,10 @@ class GraphInput(BaseModel):
     expert_review_comment: Optional[str] = Field(default=None, description="专家的审核意见（可选）")
     manual_expert_list: Optional[File] = Field(default=None, description="人工导入的专家列表（Excel格式，可选）")
     interview_minutes: Optional[File] = Field(default=None, description="访谈纪要文件（人工上传，可选，两阶段模式中使用）")
+    
+    # 项目管理相关
+    project_name: Optional[str] = Field(default=None, description="项目名称（可选，如果不提供将自动生成）")
+    project_id: Optional[int] = Field(default=None, description="项目ID（用于继续执行已存在的项目）")
 
 
 class GraphOutput(BaseModel):
@@ -322,3 +326,58 @@ class ExpertListMergeInput(BaseModel):
 class ExpertListMergeOutput(BaseModel):
     """专家列表合并节点的输出"""
     final_expert_list: List[Dict] = Field(..., description="合并后的专家列表")
+
+
+# ==================== 项目管理相关节点 ====================
+
+class ProjectCreateInput(BaseModel):
+    """项目创建节点的输入"""
+    project_name: Optional[str] = Field(default=None, description="项目名称（可选，如果不提供将自动生成）")
+    industry_keyword: str = Field(..., description="行业关键词")
+
+
+class ProjectCreateOutput(BaseModel):
+    """项目创建节点的输出"""
+    project_id: int = Field(..., description="创建的项目ID")
+    project_name: str = Field(..., description="项目名称")
+
+
+class ProjectUpdateStatusInput(BaseModel):
+    """项目状态更新节点的输入"""
+    project_id: int = Field(..., description="项目ID")
+    status: str = Field(..., description="新的项目状态")
+    current_stage: Optional[str] = Field(default=None, description="当前阶段（可选）")
+    final_topic: Optional[str] = Field(default=None, description="最终选题（可选）")
+
+
+class ProjectUpdateStatusOutput(BaseModel):
+    """项目状态更新节点的输出"""
+    success: bool = Field(..., description="是否更新成功")
+
+
+class NodeExecutionTrackingInput(BaseModel):
+    """节点执行追踪节点的输入"""
+    project_id: int = Field(..., description="项目ID")
+    node_name: str = Field(..., description="节点名称")
+    status: str = Field(..., description="节点状态：pending, in_progress, completed, failed, skipped")
+    error_message: Optional[str] = Field(default=None, description="错误信息（可选）")
+    output_json: Optional[dict] = Field(default=None, description="节点输出（可选）")
+
+
+class NodeExecutionTrackingOutput(BaseModel):
+    """节点执行追踪节点的输出"""
+    success: bool = Field(..., description="是否更新成功")
+
+
+class ProjectQueryInput(BaseModel):
+    """项目查询节点的输入"""
+    project_id: Optional[int] = Field(default=None, description="项目ID（查询单个项目）")
+    status: Optional[str] = Field(default=None, description="按状态筛选（可选）")
+    current_stage: Optional[str] = Field(default=None, description="按阶段筛选（可选）")
+    limit: int = Field(default=10, description="返回数量限制")
+
+
+class ProjectQueryOutput(BaseModel):
+    """项目查询节点的输出"""
+    projects: List[Dict] = Field(default=[], description="项目列表")
+    total: int = Field(default=0, description="总数")

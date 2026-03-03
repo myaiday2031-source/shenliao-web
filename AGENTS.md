@@ -1,6 +1,6 @@
 ## 项目概述
-- **名称**: 基于AI的主动式行业智库平台"深聊"（两阶段工作流）
-- **功能**: 这是一个AI驱动的行业智库平台工作流，通过自动化的热点扫描、AI生成选题建议、专家确认选题、专家资源匹配、客户邀约、专家沟通表生成、访谈方案生成、人工执行访谈、访谈纪要上传、深度分析、双产出物生成（研究报告+新闻稿）、多渠道分发，实现从信息采集到知识沉淀的完整闭环。**支持人机协作的选题决策流程和专家主动访谈准备**。
+- **名称**: 基于AI的主动式行业智库平台"深聊"（两阶段工作流+项目管理）
+- **功能**: 这是一个AI驱动的行业智库平台工作流，通过自动化的热点扫描、AI生成选题建议、专家确认选题、专家资源匹配、客户邀约、专家沟通表生成、访谈方案生成、人工执行访谈、访谈纪要上传、深度分析、双产出物生成（研究报告+新闻稿）、多渠道分发，实现从信息采集到知识沉淀的完整闭环。**支持人机协作的选题决策流程、专家主动访谈准备，以及多项目并行管理和实时进度监控**。
 
 ### 节点清单
 | 节点名 | 文件位置 | 类型 | 功能描述 | 分支逻辑 | 配置文件 |
@@ -23,6 +23,10 @@
 | news_article_publish | `nodes/news_article_publish_node.py` | agent | 新闻稿件发布（微信、微博、知乎） | - | `config/news_article_publish_llm_cfg.json` |
 | news_video_publish | `nodes/news_video_publish_node.py` | agent | 新闻稿视频发布（抖音、视频号） | - | `config/news_video_publish_llm_cfg.json` |
 | knowledge_storage | `nodes/knowledge_storage_node.py` | agent | 知识存储 | - | `config/knowledge_storage_llm_cfg.json` |
+| project_create | `nodes/project_create_node.py` | task | 创建新项目 | - | - |
+| project_update_status | `nodes/project_update_status_node.py` | task | 更新项目状态 | - | - |
+| node_execution_tracking | `nodes/node_execution_tracking_node.py` | task | 追踪节点执行状态 | - | - |
+| project_query | `nodes/project_query_node.py` | task | 查询项目进度 | - | - |
 
 **类型说明**: task(task节点) / agent(大模型) / condition(条件分支) / looparray(列表循环) / loopcond(条件循环)
 
@@ -227,3 +231,260 @@
 3. **专家导入格式**：人工导入专家时，Excel文件应包含姓名、机构、专业领域、研究方向等字段
 4. **访谈纪要格式**：访谈纪要可以是PDF、DOCX、TXT等格式，系统会自动提取文本内容
 5. **客户邮箱必填**：如需发送研究报告加密邮件，必须在输入中提供客户邮箱
+
+---
+
+## 项目管理功能
+
+### 项目管理概述
+为支持多个选题并行执行和实时监控项目进度，系统提供了完整的项目管理功能。通过数据库持久化存储项目信息和节点执行状态，可以实现：
+- **多项目并行**：同时运行多个研究项目，互不干扰
+- **实时监控**：查看各项目的执行状态和进度
+- **进度追踪**：追踪每个节点的执行情况
+- **历史记录**：保留完整的项目执行历史
+
+### 数据库表结构
+
+#### 项目表（projects）
+| 字段 | 类型 | 说明 |
+|-----|------|-----|
+| id | int | 项目ID（主键） |
+| name | string | 项目名称 |
+| industry_keyword | string | 行业关键词 |
+| final_topic | text | 最终选题 |
+| client_email | string | 客户邮箱 |
+| status | string | 项目状态 |
+| current_stage | string | 当前阶段 |
+| created_at | datetime | 创建时间 |
+| updated_at | datetime | 更新时间 |
+| completed_at | datetime | 完成时间 |
+| metadata_json | json | 附加信息 |
+
+#### 节点执行记录表（project_node_executions）
+| 字段 | 类型 | 说明 |
+|-----|------|-----|
+| id | int | 记录ID（主键） |
+| project_id | int | 项目ID（外键） |
+| node_name | string | 节点名称 |
+| status | string | 节点状态 |
+| started_at | datetime | 开始执行时间 |
+| completed_at | datetime | 完成时间 |
+| error_message | text | 错误信息 |
+| output_json | json | 节点输出 |
+| created_at | datetime | 记录创建时间 |
+| updated_at | datetime | 记录更新时间 |
+
+### 项目状态定义
+
+#### 项目状态（status）
+- **pending**: 待启动
+- **stage1_in_progress**: 阶段1进行中（访谈准备）
+- **stage1_completed**: 阶段1完成（等待访谈）
+- **stage2_in_progress**: 阶段2进行中（产出生成）
+- **stage2_completed**: 阶段2完成（已完成）
+- **cancelled**: 已取消
+
+#### 节点状态（status）
+- **pending**: 待执行
+- **in_progress**: 执行中
+- **completed**: 已完成
+- **failed**: 失败
+- **skipped**: 跳过
+
+### 项目管理API使用
+
+#### 创建项目
+```python
+from tools.project_api import ProjectAPI
+
+project = ProjectAPI.create_project(
+    name="人工智能行业研究报告",
+    industry_keyword="人工智能",
+    client_email="client@example.com"
+)
+
+print(f"项目ID: {project['id']}")
+```
+
+#### 查询项目
+```python
+# 查询单个项目
+project = ProjectAPI.get_project(project_id=1)
+
+# 查询项目列表
+projects = ProjectAPI.list_projects(
+    status="stage1_in_progress",  # 按状态筛选
+    limit=20
+)
+```
+
+#### 更新项目状态
+```python
+# 更新项目状态为阶段1进行中
+ProjectAPI.update_project_status(
+    project_id=1,
+    status="stage1_in_progress",
+    current_stage="stage1"
+)
+
+# 更新项目状态为阶段2进行中，并设置最终选题
+ProjectAPI.update_project_status(
+    project_id=1,
+    status="stage2_in_progress",
+    current_stage="stage2",
+    final_topic="人工智能在医疗领域的应用研究"
+)
+```
+
+#### 记录节点执行
+```python
+# 记录节点开始执行
+ProjectAPI.record_node_execution(
+    project_id=1,
+    node_name="hotspot_scan",
+    status="in_progress"
+)
+
+# 记录节点执行完成
+ProjectAPI.record_node_execution(
+    project_id=1,
+    node_name="hotspot_scan",
+    status="completed",
+    output_json={"search_results": "..."}
+)
+
+# 记录节点执行失败
+ProjectAPI.record_node_execution(
+    project_id=1,
+    node_name="expert_matching",
+    status="failed",
+    error_message="专家匹配服务不可用"
+)
+```
+
+#### 获取项目进度
+```python
+progress = ProjectAPI.get_project_progress(project_id=1)
+
+print(f"项目名称: {progress['project']['name']}")
+print(f"项目状态: {progress['project']['status']}")
+print(f"进度: {progress['progress']}%")
+print(f"节点执行情况:")
+for node in progress['nodes']:
+    print(f"  - {node['node_name']}: {node['status']}")
+```
+
+#### 取消项目
+```python
+ProjectAPI.cancel_project(project_id=1)
+```
+
+### 工作流集成项目管理
+
+#### 方式1：使用项目管理节点
+工作流中提供了以下项目管理节点，可以直接在工作流中使用：
+- **project_create**: 创建新项目
+- **project_update_status**: 更新项目状态
+- **node_execution_tracking**: 追踪节点执行
+- **project_query**: 查询项目
+
+#### 方式2：在节点中集成项目管理
+在每个节点函数中调用ProjectAPI记录节点执行状态：
+
+```python
+from tools.project_api import ProjectAPI
+
+def hotspot_scan_node(state: HotspotScanInput, config: RunnableConfig, runtime: Runtime[Context]) -> HotspotScanOutput:
+    """热点扫描节点"""
+    ctx = runtime.context
+    
+    # 获取项目ID（从runtime或state中）
+    project_id = ctx.get('project_id', 1)
+    
+    # 记录节点开始执行
+    ProjectAPI.record_node_execution(
+        project_id=project_id,
+        node_name="hotspot_scan",
+        status="in_progress"
+    )
+    
+    try:
+        # 执行节点逻辑
+        result = execute_hotspot_scan(state)
+        
+        # 记录节点执行完成
+        ProjectAPI.record_node_execution(
+            project_id=project_id,
+            node_name="hotspot_scan",
+            status="completed",
+            output_json={"search_results": result}
+        )
+        
+        return HotspotScanOutput(**result)
+    
+    except Exception as e:
+        # 记录节点执行失败
+        ProjectAPI.record_node_execution(
+            project_id=project_id,
+            node_name="hotspot_scan",
+            status="failed",
+            error_message=str(e)
+        )
+        raise
+```
+
+### 多项目并行监控
+
+#### 查看所有进行中的项目
+```python
+# 查看所有正在执行的项目（阶段1和阶段2）
+in_progress_projects = ProjectAPI.list_projects(
+    status="stage1_in_progress",
+    limit=50
+)
+
+# 查看所有已完成的项目
+completed_projects = ProjectAPI.list_projects(
+    status="stage2_completed",
+    limit=50
+)
+```
+
+#### 项目监控面板
+可以基于ProjectAPI构建一个项目监控面板，实时显示：
+- 项目列表
+- 每个项目的状态
+- 每个项目的进度百分比
+- 节点执行情况
+- 预计完成时间
+
+### 项目生命周期示例
+
+```
+1. 创建项目
+   └─ status: pending
+   └─ current_stage: null
+
+2. 开始阶段1
+   └─ status: stage1_in_progress
+   └─ current_stage: stage1
+   └─ 执行节点: hotspot_scan → topic_suggestion → ... → interview_plan
+
+3. 阶段1完成
+   └─ status: stage1_completed
+   └─ current_stage: stage1
+   └─ 等待人工执行访谈
+
+4. 开始阶段2
+   └─ status: stage2_in_progress
+   └─ current_stage: stage2
+   └─ 执行节点: interview_minutes_upload → deep_analysis → ... → knowledge_storage
+
+5. 项目完成
+   └─ status: stage2_completed
+   └─ current_stage: stage2
+   └─ completed_at: [完成时间]
+
+6. 取消项目（可选）
+   └─ status: cancelled
+```
