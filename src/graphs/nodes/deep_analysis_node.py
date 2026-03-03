@@ -15,7 +15,7 @@ from graphs.state import DeepAnalysisInput, DeepAnalysisOutput
 def deep_analysis_node(state: DeepAnalysisInput, config: RunnableConfig, runtime: Runtime[Context]) -> DeepAnalysisOutput:
     """
     title: 深度分析
-    desc: 对选中的核心选题进行深度分析，包括市场分析、技术趋势、竞争格局、发展前景等维度
+    desc: 对最终确定的选题进行深度分析，包括市场分析、技术趋势、竞争格局、发展前景等维度
     integrations: 大语言模型
     """
     ctx = runtime.context
@@ -41,7 +41,7 @@ def deep_analysis_node(state: DeepAnalysisInput, config: RunnableConfig, runtime
         up_tpl = Template(up)
         user_prompt_content = up_tpl.render({
             "industry_keyword": state.industry_keyword,
-            "selected_topic": state.selected_topic,
+            "selected_topic": state.final_topic,  # 使用final_topic
             "search_details": search_details_text
         })
         

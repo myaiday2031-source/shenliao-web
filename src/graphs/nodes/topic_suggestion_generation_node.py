@@ -1,5 +1,5 @@
 """
-选题生成节点：使用大语言模型分析搜索结果，生成选题建议
+AI选题建议生成节点：使用大语言模型分析搜索结果，生成选题建议（不做最终决策）
 """
 import os
 import json
@@ -9,13 +9,13 @@ from langgraph.runtime import Runtime
 from coze_coding_utils.runtime_ctx.context import Context
 from langchain_core.messages import HumanMessage, SystemMessage
 from coze_coding_dev_sdk import LLMClient
-from graphs.state import TopicGenerationInput, TopicGenerationOutput
+from graphs.state import TopicSuggestionGenerationInput, TopicSuggestionGenerationOutput
 
 
-def topic_generation_node(state: TopicGenerationInput, config: RunnableConfig, runtime: Runtime[Context]) -> TopicGenerationOutput:
+def topic_suggestion_generation_node(state: TopicSuggestionGenerationInput, config: RunnableConfig, runtime: Runtime[Context]) -> TopicSuggestionGenerationOutput:
     """
-    title: 选题生成
-    desc: 基于热点扫描结果，使用大语言模型生成高质量的选题建议，包括核心选题和备选选题
+    title: AI选题建议生成
+    desc: 基于热点扫描结果，使用大语言模型生成高质量的选题建议（包含多个备选选题），供专家参考和选择
     integrations: 大语言模型
     """
     ctx = runtime.context
@@ -68,36 +68,41 @@ def topic_generation_node(state: TopicGenerationInput, config: RunnableConfig, r
         elif not isinstance(response_text, str):
             response_text = str(response_text)
         
-        # 解析响应，提取核心选题
-        # 简单处理：假设第一段是核心选题，后面是备选选题
+        # 解析响应，提取AI推荐的选题
+        # 假设推荐选题以"推荐选题"或"核心选题"开头
         lines = response_text.split('\n')
-        selected_topic = ""
-        topic_suggestions = response_text
+        ai_recommended_topic = ""
         
-        # 尝试找到核心选题（通常以"核心选题"或"推荐选题"开头）
+        # 尝试找到推荐选题
         for line in lines:
-            if "核心选题" in line or "推荐选题" in line or "主选题" in line:
+            if "推荐选题" in line or "核心选题" in line or "主选题" in line:
                 # 提取选题内容
                 topic_text = line.split("：")[-1].split(":")[-1].strip()
-                if topic_text:
-                    selected_topic = topic_text
-                    break
+                if topic_text and not topic_text.startswith('**'):
+                    ai_recommended_topic = topic_text
+                elif topic_text.startswith('**'):
+                    ai_recommended_topic = topic_text.replace('**', '').strip()
+                break
         
-        # 如果没有找到明确的核心选题，使用第一段非空文本
-        if not selected_topic and lines:
+        # 如果没有找到明确的核心选题，使用第一个非标题的文本
+        if not ai_recommended_topic and lines:
             for line in lines:
                 if line.strip() and not line.startswith('#') and not line.startswith('-'):
-                    selected_topic = line.strip()
+                    # 移除可能的markdown格式
+                    cleaned_line = line.strip()
+                    if cleaned_line.startswith('**'):
+                        cleaned_line = cleaned_line.replace('**', '').strip()
+                    ai_recommended_topic = cleaned_line
                     break
         
         # 如果还是没有，使用行业关键词作为默认
-        if not selected_topic:
-            selected_topic = state.industry_keyword + "行业深度研究"
+        if not ai_recommended_topic:
+            ai_recommended_topic = f"{state.industry_keyword}行业深度研究"
         
-        return TopicGenerationOutput(
-            topic_suggestions=topic_suggestions,
-            selected_topic=selected_topic
+        return TopicSuggestionGenerationOutput(
+            topic_suggestions=response_text,
+            ai_recommended_topic=ai_recommended_topic
         )
         
     except Exception as e:
-        raise Exception(f"选题生成失败: {str(e)}")
+        raise Exception(f"AI选题建议生成失败: {str(e)}")

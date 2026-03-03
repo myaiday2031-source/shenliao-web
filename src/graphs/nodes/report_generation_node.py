@@ -21,7 +21,7 @@ def report_generation_node(state: ReportGenerationInput, config: RunnableConfig,
         client = DocumentGenerationClient()
         
         # 构建Markdown格式的报告内容
-        markdown_content = f"""# {state.selected_topic}
+        markdown_content = f"""# {state.final_topic}
 
 ## 行业关键词
 {state.industry_keyword}
@@ -72,7 +72,6 @@ def report_generation_node(state: ReportGenerationInput, config: RunnableConfig,
 """
         
         # 生成PDF报告（使用英文标题）
-        # 将中文标题转换为拼音或英文，避免文件名问题
         safe_title = "industry_research_report"
         
         url = client.create_pdf_from_markdown(markdown_content, safe_title)

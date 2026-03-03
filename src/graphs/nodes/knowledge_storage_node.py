@@ -27,15 +27,19 @@ def knowledge_storage_node(state: KnowledgeStorageInput, config: RunnableConfig,
 选题建议：
 {state.topic_suggestions}
 
-核心选题：{state.selected_topic}
+最终选题：{state.final_topic}
+
+专家审核意见：{state.expert_review_comment or '无'}
 """
         
         # 2. 深度分析文档
         analysis_doc = f"""行业：{state.industry_keyword}
-选题：{state.selected_topic}
+选题：{state.final_topic}
 
 深度分析内容：
 {state.deep_analysis}
+
+专家审核意见：{state.expert_review_comment or '无'}
 """
         
         # 3. 搜索结果文档（如果有）
