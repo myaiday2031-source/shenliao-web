@@ -4,13 +4,13 @@
 import os
 import json
 from jinja2 import Template
-from typing import List, Dict
+from typing import List, Dict, Any
 from langchain_core.runnables import RunnableConfig
 from langgraph.runtime import Runtime
 from coze_coding_utils.runtime_ctx.context import Context
 from langchain_core.messages import HumanMessage, SystemMessage
-from coze_coding_dev_sdk import LLMClient
 from graphs.state import ClientInvitationInput, ClientInvitationOutput
+from coze_coding_dev_sdk import LLMClient
 
 
 def client_invitation_node(state: ClientInvitationInput, config: RunnableConfig, runtime: Runtime[Context]) -> ClientInvitationOutput:
@@ -33,12 +33,16 @@ def client_invitation_node(state: ClientInvitationInput, config: RunnableConfig,
         
         # 整理专家列表为文本
         expert_list_text = ""
-        for idx, expert in enumerate(state.expert_candidates[:5], 1):
-            expert_list_text += f"{idx}. {expert.get('name', '专家姓名')}"
-            if expert.get('institution'):
-                expert_list_text += f" - {expert['institution']}"
-            if expert.get('specialty'):
-                expert_list_text += f"（{expert['specialty']}）"
+        for idx, expert in enumerate(state.final_expert_list[:5], 1):
+            name = expert.get('姓名', expert.get('name', '专家姓名'))
+            institution = expert.get('机构', expert.get('institution', ''))
+            specialty = expert.get('专业领域', expert.get('specialty', ''))
+            
+            expert_list_text += f"{idx}. {name}"
+            if institution:
+                expert_list_text += f" - {institution}"
+            if specialty:
+                expert_list_text += f"（{specialty}）"
             expert_list_text += "\n"
         
         # 使用jinja2模板渲染提示词
@@ -47,10 +51,10 @@ def client_invitation_node(state: ClientInvitationInput, config: RunnableConfig,
             "industry_keyword": state.industry_keyword,
             "final_topic": state.final_topic,
             "expert_list_text": expert_list_text,
-            "expert_count": len(state.expert_candidates)
+            "expert_count": len(state.final_expert_list)
         })
         
-        # 初始化LLM客户端
+        # 初始化LLM
         client = LLMClient(ctx=ctx)
         
         # 构建消息

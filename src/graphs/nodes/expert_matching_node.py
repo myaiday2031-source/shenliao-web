@@ -4,13 +4,13 @@
 import os
 import json
 from jinja2 import Template
-from typing import List, Dict
+from typing import List, Dict, Any
 from langchain_core.runnables import RunnableConfig
 from langgraph.runtime import Runtime
 from coze_coding_utils.runtime_ctx.context import Context
 from langchain_core.messages import HumanMessage, SystemMessage
-from coze_coding_dev_sdk import LLMClient
 from graphs.state import ExpertMatchingInput, ExpertMatchingOutput
+from coze_coding_dev_sdk import LLMClient
 
 
 def expert_matching_node(state: ExpertMatchingInput, config: RunnableConfig, runtime: Runtime[Context]) -> ExpertMatchingOutput:
@@ -39,7 +39,7 @@ def expert_matching_node(state: ExpertMatchingInput, config: RunnableConfig, run
             "search_details": state.search_details
         })
         
-        # 初始化LLM客户端
+        # 初始化LLM
         client = LLMClient(ctx=ctx)
         
         # 构建消息
@@ -68,44 +68,44 @@ def expert_matching_node(state: ExpertMatchingInput, config: RunnableConfig, run
         elif not isinstance(response_text, str):
             response_text = str(response_text)
         
-        # 解析专家列表（简单的文本解析，实际场景可能需要更复杂的解析逻辑）
-        expert_candidates = []
+        # 解析专家列表
+        ai_matched_experts: List[Dict[str, Any]] = []
         lines = response_text.split('\n')
         
-        current_expert = {}
+        current_expert: Dict[str, Any] = {}
         for line in lines:
             line = line.strip()
             if not line:
                 if current_expert:
-                    expert_candidates.append(current_expert)
+                    ai_matched_experts.append(current_expert)
                     current_expert = {}
                 continue
             
             # 尝试解析专家信息
             if line.startswith('专家') or line.startswith('姓名') or line.startswith('1.') or line.startswith('2.') or line.startswith('3.') or line.startswith('4.') or line.startswith('5.') or line.startswith('6.') or line.startswith('7.') or line.startswith('8.') or line.startswith('9.') or line.startswith('10.'):
                 if current_expert:
-                    expert_candidates.append(current_expert)
-                current_expert = {"name": line.split('.')[-1].strip() if '.' in line else line.strip()}
+                    ai_matched_experts.append(current_expert)
+                current_expert = {"姓名": line.split('.')[-1].strip() if '.' in line else line.strip()}
             elif '机构' in line or '单位' in line:
-                current_expert['institution'] = line.split('：')[-1].split(':')[-1].strip()
+                current_expert['机构'] = line.split('：')[-1].split(':')[-1].strip()
             elif '专业' in line or '领域' in line:
-                current_expert['specialty'] = line.split('：')[-1].split(':')[-1].strip()
+                current_expert['专业领域'] = line.split('：')[-1].split(':')[-1].strip()
             elif '方向' in line or '研究' in line:
-                current_expert['research'] = line.split('：')[-1].split(':')[-1].strip()
+                current_expert['研究方向'] = line.split('：')[-1].split(':')[-1].strip()
         
         # 添加最后一个专家
         if current_expert:
-            expert_candidates.append(current_expert)
+            ai_matched_experts.append(current_expert)
         
         # 如果解析失败，使用原始文本作为单个专家
-        if not expert_candidates:
-            expert_candidates = [{"name": "待定专家", "info": response_text}]
+        if not ai_matched_experts:
+            ai_matched_experts = [{"姓名": "待定专家", "信息": response_text}]
         
         # 确保最多10位专家
-        expert_candidates = expert_candidates[:10]
+        ai_matched_experts = ai_matched_experts[:10]
         
         return ExpertMatchingOutput(
-            expert_candidates=expert_candidates
+            ai_matched_experts=ai_matched_experts
         )
         
     except Exception as e:

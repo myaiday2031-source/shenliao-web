@@ -3,12 +3,14 @@
 """
 from typing import List, Dict, Optional
 from pydantic import BaseModel, Field
+from utils.file.file import File
 
 
 class GlobalState(BaseModel):
     """全局状态定义"""
     # 输入数据
     industry_keyword: str = Field(default="", description="行业关键词或主题")
+    client_email: str = Field(default="", description="客户邮箱地址")
     
     # 热点扫描结果
     search_results: str = Field(default="", description="热点搜索结果摘要")
@@ -21,7 +23,9 @@ class GlobalState(BaseModel):
     expert_review_comment: Optional[str] = Field(default=None, description="专家的审核意见（可选）")
     
     # 专家资源匹配结果
-    expert_candidates: List[Dict] = Field(default=[], description="AI匹配的8-10位专家人选列表")
+    ai_matched_experts: List[Dict] = Field(default=[], description="AI匹配的8-10位专家人选列表")
+    manual_expert_list: List[Dict] = Field(default=[], description="人工导入的专家列表")
+    final_expert_list: List[Dict] = Field(default=[], description="最终确定的专家列表（AI匹配+人工导入）")
     
     # 客户邀约邮件
     client_invitation_email: str = Field(default="", description="向客户发送的邀约邮件内容")
@@ -29,11 +33,27 @@ class GlobalState(BaseModel):
     # 专家沟通表
     expert_communication_table: str = Field(default="", description="与专家的沟通表内容（时间、主题、薪酬等）")
     
+    # 访谈/会议方案
+    interview_plan: str = Field(default="", description="访谈/会议方案")
+    
+    # 访谈纪要
+    interview_minutes: Optional[File] = Field(default=None, description="访谈纪要文件（人工上传）")
+    interview_minutes_text: str = Field(default="", description="访谈纪要文本内容")
+    
     # 深度分析结果
     deep_analysis: str = Field(default="", description="深度分析内容")
     
-    # 报告生成结果
-    report_url: str = Field(default="", description="生成的报告URL")
+    # 双产出物
+    research_report: str = Field(default="", description="详细版研究报告内容")
+    research_report_url: str = Field(default="", description="研究报告PDF下载URL")
+    news_article: str = Field(default="", description="简报版新闻稿件内容")
+    news_video: Optional[File] = Field(default=None, description="新闻稿视频文件")
+    news_video_url: str = Field(default="", description="新闻稿视频URL")
+    
+    # 分发状态
+    encrypted_email_sent: bool = Field(default=False, description="研究报告加密邮件是否已发送")
+    news_article_published: bool = Field(default=False, description="新闻稿件是否已发布（微信、微博、知乎）")
+    news_video_published: bool = Field(default=False, description="新闻稿视频是否已发布（抖音、视频号）")
     
     # 知识库存储结果
     knowledge_ids: List[str] = Field(default=[], description="存储到知识库的文档ID列表")
@@ -42,15 +62,24 @@ class GlobalState(BaseModel):
 class GraphInput(BaseModel):
     """工作流的输入"""
     industry_keyword: str = Field(..., description="行业关键词或主题，例如：人工智能、量子计算、新能源汽车等")
+    client_email: Optional[str] = Field(default=None, description="客户邮箱地址（用于发送研究报告）")
     expert_confirmed_topic: Optional[str] = Field(default=None, description="专家最终确认的选题（可选，如果不提供，将使用AI推荐或等待专家输入）")
     expert_review_comment: Optional[str] = Field(default=None, description="专家的审核意见（可选）")
+    manual_expert_list: Optional[File] = Field(default=None, description="人工导入的专家列表（Excel格式，可选）")
+    interview_minutes: Optional[File] = Field(default=None, description="访谈纪要文件（人工上传，可选，两阶段模式中使用）")
 
 
 class GraphOutput(BaseModel):
     """工作流的输出"""
     topic_suggestions: str = Field(..., description="AI生成的选题建议")
+    interview_plan: str = Field(default="", description="访谈/会议方案（阶段1输出）")
     deep_analysis: str = Field(..., description="深度分析内容")
-    report_url: str = Field(..., description="生成的报告下载URL")
+    research_report_url: str = Field(..., description="详细版研究报告下载URL")
+    news_article: str = Field(..., description="简报版新闻稿件内容")
+    news_video_url: str = Field(default="", description="新闻稿视频URL")
+    encrypted_email_sent: bool = Field(default=False, description="研究报告加密邮件是否已发送")
+    news_article_published: bool = Field(default=False, description="新闻稿件是否已发布")
+    news_video_published: bool = Field(default=False, description="新闻稿视频是否已发布")
 
 
 # ==================== 节点1: 热点扫描 ====================
@@ -96,7 +125,181 @@ class TopicConfirmationOutput(BaseModel):
     expert_review_comment: Optional[str] = Field(default=None, description="专家的审核意见")
 
 
-# ==================== 节点4: 专家资源匹配 ====================
+# ==================== 节点5: 客户邀约邮件生成（更新） ====================
+class ClientInvitationInput(BaseModel):
+    """客户邀约邮件生成节点的输入"""
+    industry_keyword: str = Field(..., description="行业关键词或主题")
+    final_topic: str = Field(..., description="最终确定的选题")
+    final_expert_list: List[Dict] = Field(..., description="最终确定的专家列表")
+
+
+class ClientInvitationOutput(BaseModel):
+    """客户邀约邮件生成节点的输出"""
+    client_invitation_email: str = Field(..., description="向客户发送的邀约邮件内容")
+
+
+class KnowledgeStorageInput(BaseModel):
+    """知识存储节点的输入"""
+    industry_keyword: str = Field(..., description="行业关键词或主题")
+    final_topic: str = Field(..., description="最终确定的选题")
+    topic_suggestions: str = Field(..., description="AI生成的选题建议")
+    deep_analysis: str = Field(..., description="深度分析内容")
+    search_details: List[Dict] = Field(default=[], description="搜索结果详情列表")
+    expert_review_comment: Optional[str] = Field(default=None, description="专家的审核意见")
+    interview_plan: str = Field(default="", description="访谈/会议方案")
+    interview_minutes_text: str = Field(default="", description="访谈纪要文本内容")
+    research_report: str = Field(default="", description="详细版研究报告内容")
+    news_article: str = Field(default="", description="简报版新闻稿件内容")
+
+
+class KnowledgeStorageOutput(BaseModel):
+    """知识存储节点的输出"""
+    knowledge_ids: List[str] = Field(default=[], description="存储到知识库的文档ID列表")
+
+
+# ==================== 节点4-1: 人工专家导入 ====================
+class ManualExpertImportInput(BaseModel):
+    """人工专家导入节点的输入"""
+    manual_expert_list: Optional[File] = Field(default=None, description="人工导入的专家列表（Excel格式）")
+
+
+class ManualExpertImportOutput(BaseModel):
+    """人工专家导入节点的输出"""
+    manual_expert_list: List[Dict] = Field(default=[], description="解析出的专家列表")
+
+
+# ==================== 节点7: 专家沟通表 ====================
+class CommunicationTableInput(BaseModel):
+    """沟通表生成节点的输入"""
+    industry_keyword: str = Field(..., description="行业关键词或主题")
+    final_topic: str = Field(..., description="最终确定的选题")
+    final_expert_list: List[Dict] = Field(..., description="最终确定的专家列表")
+
+
+class CommunicationTableOutput(BaseModel):
+    """沟通表生成节点的输出"""
+    expert_communication_table: str = Field(..., description="与专家的沟通表内容（时间、主题、薪酬等）")
+
+
+# ==================== 节点8: 访谈/会议方案生成 ====================
+class InterviewPlanInput(BaseModel):
+    """访谈/会议方案生成节点的输入"""
+    industry_keyword: str = Field(..., description="行业关键词或主题")
+    final_topic: str = Field(..., description="最终确定的选题")
+    final_expert_list: List[Dict] = Field(..., description="最终确定的专家列表")
+    expert_communication_table: str = Field(..., description="与专家的沟通表内容")
+
+
+class InterviewPlanOutput(BaseModel):
+    """访谈/会议方案生成节点的输出"""
+    interview_plan: str = Field(..., description="访谈/会议方案")
+
+
+# ==================== 节点9: 访谈纪要上传 ====================
+class InterviewMinutesUploadInput(BaseModel):
+    """访谈纪要上传节点的输入"""
+    interview_minutes: Optional[File] = Field(default=None, description="访谈纪要文件（人工上传）")
+
+
+class InterviewMinutesUploadOutput(BaseModel):
+    """访谈纪要上传节点的输出"""
+    interview_minutes_text: str = Field(..., description="访谈纪要文本内容")
+
+
+# ==================== 节点10: 深度分析 ====================
+class DeepAnalysisInput(BaseModel):
+    """深度分析节点的输入"""
+    industry_keyword: str = Field(..., description="行业关键词或主题")
+    final_topic: str = Field(..., description="最终确定的选题")
+    search_details: List[Dict] = Field(default=[], description="搜索结果详情列表")
+    interview_minutes_text: str = Field(..., description="访谈纪要文本内容")
+
+
+class DeepAnalysisOutput(BaseModel):
+    """深度分析节点的输出"""
+    deep_analysis: str = Field(..., description="深度分析内容")
+
+
+# ==================== 节点11-1: 研究报告生成 ====================
+class ResearchReportInput(BaseModel):
+    """研究报告生成节点的输入"""
+    industry_keyword: str = Field(..., description="行业关键词或主题")
+    final_topic: str = Field(..., description="最终确定的选题")
+    topic_suggestions: str = Field(..., description="AI生成的选题建议")
+    deep_analysis: str = Field(..., description="深度分析内容")
+    interview_minutes_text: str = Field(..., description="访谈纪要文本内容")
+
+
+class ResearchReportOutput(BaseModel):
+    """研究报告生成节点的输出"""
+    research_report: str = Field(..., description="详细版研究报告内容")
+    research_report_url: str = Field(..., description="研究报告PDF下载URL")
+
+
+# ==================== 节点11-2: 新闻稿件生成 ====================
+class NewsArticleInput(BaseModel):
+    """新闻稿件生成节点的输入"""
+    industry_keyword: str = Field(..., description="行业关键词或主题")
+    final_topic: str = Field(..., description="最终确定的选题")
+    deep_analysis: str = Field(..., description="深度分析内容")
+    interview_minutes_text: str = Field(..., description="访谈纪要文本内容")
+
+
+class NewsArticleOutput(BaseModel):
+    """新闻稿件生成节点的输出"""
+    news_article: str = Field(..., description="简报版新闻稿件内容")
+
+
+# ==================== 节点12-2: 新闻稿视频生成 ====================
+class NewsVideoGenerationInput(BaseModel):
+    """新闻稿视频生成节点的输入"""
+    news_article: str = Field(..., description="新闻稿件内容")
+
+
+class NewsVideoGenerationOutput(BaseModel):
+    """新闻稿视频生成节点的输出"""
+    news_video_url: str = Field(..., description="新闻稿视频URL")
+
+
+# ==================== 节点13-1: 研究报告加密邮件发送 ====================
+class EncryptedEmailSendInput(BaseModel):
+    """研究报告加密邮件发送节点的输入"""
+    client_email: str = Field(..., description="客户邮箱地址")
+    industry_keyword: str = Field(..., description="行业关键词或主题")
+    final_topic: str = Field(..., description="最终确定的选题")
+    research_report_url: str = Field(..., description="研究报告PDF下载URL")
+
+
+class EncryptedEmailSendOutput(BaseModel):
+    """研究报告加密邮件发送节点的输出"""
+    encrypted_email_sent: bool = Field(..., description="研究报告加密邮件是否已发送")
+
+
+# ==================== 节点13-2: 新闻稿件发布 ====================
+class NewsArticlePublishInput(BaseModel):
+    """新闻稿件发布节点的输入"""
+    news_article: str = Field(..., description="新闻稿件内容")
+    industry_keyword: str = Field(..., description="行业关键词或主题")
+
+
+class NewsArticlePublishOutput(BaseModel):
+    """新闻稿件发布节点的输出"""
+    news_article_published: bool = Field(..., description="新闻稿件是否已发布（微信、微博、知乎）")
+
+
+# ==================== 节点13-3: 新闻稿视频发布 ====================
+class NewsVideoPublishInput(BaseModel):
+    """新闻稿视频发布节点的输入"""
+    news_video_url: str = Field(..., description="新闻稿视频URL")
+    industry_keyword: str = Field(..., description="行业关键词或主题")
+
+
+class NewsVideoPublishOutput(BaseModel):
+    """新闻稿视频发布节点的输出"""
+    news_video_published: bool = Field(..., description="新闻稿视频是否已发布（抖音、视频号）")
+
+
+# ==================== 节点4: 专家资源匹配（更新） ====================
 class ExpertMatchingInput(BaseModel):
     """专家资源匹配节点的输入"""
     industry_keyword: str = Field(..., description="行业关键词或主题")
@@ -106,73 +309,16 @@ class ExpertMatchingInput(BaseModel):
 
 class ExpertMatchingOutput(BaseModel):
     """专家资源匹配节点的输出"""
-    expert_candidates: List[Dict] = Field(..., description="AI匹配的8-10位专家人选列表")
+    ai_matched_experts: List[Dict] = Field(..., description="AI匹配的8-10位专家人选列表")
 
 
-# ==================== 节点5: 客户邀约邮件生成 ====================
-class ClientInvitationInput(BaseModel):
-    """客户邀约邮件生成节点的输入"""
-    industry_keyword: str = Field(..., description="行业关键词或主题")
-    final_topic: str = Field(..., description="最终确定的选题")
-    expert_candidates: List[Dict] = Field(..., description="匹配的专家人选列表")
+# ==================== 节点4-2: 专家列表合并 ====================
+class ExpertListMergeInput(BaseModel):
+    """专家列表合并节点的输入"""
+    ai_matched_experts: List[Dict] = Field(default=[], description="AI匹配的专家列表")
+    manual_expert_list: List[Dict] = Field(default=[], description="人工导入的专家列表")
 
 
-class ClientInvitationOutput(BaseModel):
-    """客户邀约邮件生成节点的输出"""
-    client_invitation_email: str = Field(..., description="向客户发送的邀约邮件内容")
-
-
-# ==================== 节点6: 沟通表生成 ====================
-class CommunicationTableInput(BaseModel):
-    """沟通表生成节点的输入"""
-    industry_keyword: str = Field(..., description="行业关键词或主题")
-    final_topic: str = Field(..., description="最终确定的选题")
-    expert_candidates: List[Dict] = Field(..., description="匹配的专家人选列表")
-
-
-class CommunicationTableOutput(BaseModel):
-    """沟通表生成节点的输出"""
-    expert_communication_table: str = Field(..., description="与专家的沟通表内容（时间、主题、薪酬等）")
-
-
-# ==================== 节点7: 深度分析 ====================
-class DeepAnalysisInput(BaseModel):
-    """深度分析节点的输入"""
-    industry_keyword: str = Field(..., description="行业关键词或主题")
-    final_topic: str = Field(..., description="最终确定的选题")
-    search_details: List[Dict] = Field(default=[], description="搜索结果详情列表")
-
-
-class DeepAnalysisOutput(BaseModel):
-    """深度分析节点的输出"""
-    deep_analysis: str = Field(..., description="深度分析内容")
-
-
-# ==================== 节点8: 报告生成 ====================
-class ReportGenerationInput(BaseModel):
-    """报告生成节点的输入"""
-    industry_keyword: str = Field(..., description="行业关键词或主题")
-    final_topic: str = Field(..., description="最终确定的选题")
-    topic_suggestions: str = Field(..., description="AI生成的选题建议")
-    deep_analysis: str = Field(..., description="深度分析内容")
-
-
-class ReportGenerationOutput(BaseModel):
-    """报告生成节点的输出"""
-    report_url: str = Field(..., description="生成的报告下载URL")
-
-
-# ==================== 节点9: 知识存储 ====================
-class KnowledgeStorageInput(BaseModel):
-    """知识存储节点的输入"""
-    industry_keyword: str = Field(..., description="行业关键词或主题")
-    final_topic: str = Field(..., description="最终确定的选题")
-    topic_suggestions: str = Field(..., description="AI生成的选题建议")
-    deep_analysis: str = Field(..., description="深度分析内容")
-    search_details: List[Dict] = Field(default=[], description="搜索结果详情列表")
-    expert_review_comment: Optional[str] = Field(default=None, description="专家的审核意见")
-
-
-class KnowledgeStorageOutput(BaseModel):
-    """知识存储节点的输出"""
-    knowledge_ids: List[str] = Field(default=[], description="存储到知识库的文档ID列表")
+class ExpertListMergeOutput(BaseModel):
+    """专家列表合并节点的输出"""
+    final_expert_list: List[Dict] = Field(..., description="合并后的专家列表")
