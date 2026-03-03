@@ -53,14 +53,54 @@ web/
 
 ## 快速开始
 
-### 1. 安装依赖
+### 🚀 线上部署（推荐）
+
+想要快速将网站部署到线上？我们提供两种方案：
+
+#### 方案 1: Vercel 部署（推荐，最快，5分钟）
+
+```bash
+cd web
+npm install -g vercel
+vercel login
+bash scripts/deploy-vercel.sh
+```
+
+**优势**:
+- ✅ 5分钟快速上线
+- ✅ 免费，无需服务器
+- ✅ 全球 CDN 加速
+- ✅ 自动 HTTPS
+- ✅ GitHub 自动部署
+
+详细文档: [Vercel 部署指南](VERCEL_DEPLOY.md)
+
+#### 方案 2: Nginx 反向代理（自有服务器）
+
+```bash
+cd web
+bash scripts/deploy-nginx.sh
+```
+
+**优势**:
+- ✅ 完全控制服务器
+- ✅ 灵活配置
+- ✅ 适合长期运营
+
+详细文档: [Nginx 部署指南](NGINX_DEPLOY.md)
+
+📖 **完整部署指南**: [DEPLOYMENT.md](DEPLOYMENT.md)
+
+### 🖥️ 本地开发
+
+#### 1. 安装依赖
 
 ```bash
 cd web
 npm install
 ```
 
-### 2. 配置环境变量
+#### 2. 配置环境变量
 
 创建 `.env.local` 文件：
 
@@ -68,7 +108,7 @@ npm install
 NEXT_PUBLIC_API_URL=http://localhost:8000
 ```
 
-### 3. 启动开发服务器
+#### 3. 启动开发服务器
 
 ```bash
 npm run dev
@@ -169,3 +209,42 @@ npm start
 ## 联系支持
 
 如有问题或建议，请联系开发团队。
+
+## 📚 相关文档
+
+### 部署相关
+- 🚀 **[线上部署指南](DEPLOYMENT.md)** - Vercel 和 Nginx 两种部署方案
+- ☁️ **[Vercel 部署](VERCEL_DEPLOY.md)** - 详细的 Vercel 部署步骤
+- 🔧 **[Nginx 部署](NGINX_DEPLOY.md)** - Nginx 反向代理配置
+- 🏠 **[快速启动](QUICKSTART.md)** - 快速启动指南
+
+### 访问相关
+- 🌐 **[访问指南](ACCESS.md)** - 网站访问问题和解决方案
+- 🔍 **[解决方案](SOLUTION.md)** - 访问问题解决方案
+
+### 其他
+- ⚙️ **[项目文档](README.md)** - 本文档
+- 🔧 **[开发指南](#开发注意事项)** - 开发规范和注意事项
+
+## 🎯 快速链接
+
+### 想要快速上线？
+```bash
+cd web
+bash scripts/deploy-vercel.sh  # Vercel 部署（推荐）
+# 或
+bash scripts/deploy-nginx.sh   # Nginx 部署
+```
+
+### 想要本地开发？
+```bash
+cd web
+npm install
+npm run dev
+```
+
+### 想要测试访问？
+```bash
+cd web
+bash scripts/test-access.sh
+```
